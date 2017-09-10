@@ -1,0 +1,134 @@
+Loading data
+
+emp_det = LOAD 'employee_details.txt' USING PigStorage(',')  as (emp_id:int,emp_name:chararray,salary:int,rating:int);
+emp_exp = LOAD 'employee_expenses.txt' as (emp_id:int,exp:int);
+
+a)	Top 5 employees (employee id and employee name) with highest rating. (In case two employees have same rating, employee with name coming first in dictionary should get preference)
+
+emp_det_sorted = ORDER emp_det by rating desc, emp_name;
+dump emp_det_sorted;
+
+(105,Pawan,2500,5)
+(110,Priyanka,2000,5)
+(104,Anubhav,5000,4)
+(109,Katrina,1000,4)
+(103,Akshay,11000,3)
+(108,Ranbir,14000,3)
+(112,Ajay,5000,2)
+(114,Madhuri,2000,2)
+(107,Salman,17500,2)
+(102,Shahrukh,10000,2)
+(106,Aamir,25000,1)
+(101,Amitabh,20000,1)
+(113,Jubeen,1000,1)
+(111,Tushar,500,1)
+
+grunt> five_top_emp = limit emp_det_sorted 5;
+grunt> result= foreach five_top_emp generate emp_id, emp_name;
+grunt> dump result;
+
+(105,Pawan,2500,5)
+(110,Priyanka,2000,5)
+(104,Anubhav,5000,4)
+(109,Katrina,1000,4)
+(103,Akshay,11000,3)
+
+b)	Top 3 employees (employee id and employee name) with highest salary, whose employee id is an odd number. (In case two employees have same salary, employee with name coming first in dictionary should get preference) 
+
+grunt> emp_det = LOAD 'employee_details.txt' USING PigStorage(',')  as (emp_id:int,emp_name:chararray,salary:int,rating:int);
+grunt> emp_exp = LOAD 'employee_expenses.txt' as (emp_id:int,exp:int);
+
+grunt> emp_det_odd = filter emp_det by emp_id%2 != 0;
+grunt> emp_det_odd_sorted = ORDER emp_det_odd by salary desc, emp_name;
+grunt> dump emp_det_odd_sorted;
+
+(101,Amitabh,20000,1)
+(107,Salman,17500,2)
+(103,Akshay,11000,3)
+(105,Pawan,2500,5)
+(113,Jubeen,1000,1)
+(109,Katrina,1000,4)
+(111,Tushar,500,1)
+
+grunt> three_top_odd_emp = limit emp_det_odd_sorted 3;
+grunt> result= foreach three_top_odd_emp generate emp_id, emp_name;
+grunt> dump result;
+
+(101,Amitabh)
+(107,Salman)
+(103,Akshay)
+
+
+
+c)	Employee (employee id and employee name) with maximum expense (In case two employees have same expense, employee with name coming first in dictionary should get preference)
+
+grunt> emp_det = LOAD 'employee_details.txt' USING PigStorage(',')  as (emp_id:int,emp_name:chararray,salary:int,rating:int);
+grunt> emp_exp = LOAD 'employee_expenses.txt' as (emp_id:int,exp:int);
+
+grunt> emp_joined = join emp_det by emp_id inner, emp_exp by emp_id inner;
+
+grunt> emp_joined_selected = foreach emp_joined generate emp_det::emp_id as emp_id, emp_name as emp_name, exp as exp;
+grunt> dump emp_joined_selected;
+grunt> emp_joined_sorted = ORDER emp_joined_selected by exp desc, emp_name;
+
+grunt> emp_group = GROUP emp_joined_sorted by (emp_id, emp_name);
+
+grunt> emp_exp_sum = foreach emp_group generate flatten(group),  MAX(emp_joined_sorted.exp) as exp;
+grunt> emp_exp_sorted = ORDER emp_exp_sum by exp desc, emp_name;
+
+grunt> dump emp_exp_sorted;
+
+(110,Priyanka,400)
+(102,Shahrukh,400)
+(104,Anubhav,300)
+(101,Amitabh,200)
+(114,Madhuri,200)
+(105,Pawan,100)
+
+
+
+
+d)	List of employees (employee id and employee name) having entries in employee_expenses file.
+
+grunt> emp_det = LOAD 'employee_details.txt' USING PigStorage(',')  as (emp_id:int,emp_name:chararray,salary:int,rating:int);
+grunt> emp_exp = LOAD 'employee_expenses.txt' as (emp_id:int,exp:int);
+
+grunt> emp_joined = join emp_det by emp_id outer, emp_exp by emp_id ;
+
+grunt> emp_grp = cogroup emp_det by emp_id , emp_exp by emp_id; 
+grunt> emp_filtered = filter emp_grp by not IsEmpty(emp_exp) and not IsEmpty(emp_det);
+
+grunt> result = foreach emp_filtered generate group, flatten(emp_det.emp_name);
+
+grunt> dump result;
+
+(101,Amitabh)
+(102,Shahrukh)
+(104,Anubhav)
+(105,Pawan)
+(110,Priyanka)
+(114,Madhuri)
+
+e)	List of employees (employee id and employee name) having no entry in employee_expenses file.
+
+grunt> emp_det = LOAD 'employee_details.txt' USING PigStorage(',')  as (emp_id:int,emp_name:chararray,salary:int,rating:int);
+grunt> emp_exp = LOAD 'employee_expenses.txt' as (emp_id:int,exp:int);
+
+grunt> emp_joined = join emp_det by emp_id outer, emp_exp by emp_id ;
+
+grunt> emp_grp = cogroup emp_det by emp_id , emp_exp by emp_id; 
+grunt> emp_filtered = filter emp_grp by IsEmpty(emp_exp) and not IsEmpty(emp_det);
+
+grunt> result = foreach emp_filtered generate group, flatten(emp_det.emp_name);
+
+grunt> dump result;
+
+(103,Akshay)
+(106,Aamir)
+(107,Salman)
+(108,Ranbir)
+(109,Katrina)
+(111,Tushar)
+(112,Ajay)
+(113,Jubeen)
+
